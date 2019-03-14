@@ -1,11 +1,10 @@
 import numpy as np
-from sklearn.cluster import Birch
 import matplotlib.pyplot as plt
 import time
 
 # Parameters
 fault_th = 10  # Threshold on outliers to generate fault
-n = 2000  # Used samples for DBScan
+n = 20000  # Used samples for DBScan
 ldaDimension = 2  # LDA dimension
 clusterRadius = 0.05  # Cluster radius
 minSamples = 10  # Minimum datapoints in cluster to be defined cluster
@@ -15,9 +14,9 @@ minSamples = 10  # Minimum datapoints in cluster to be defined cluster
 def dbscan(setofpoints, eps, minpoints):
     global n
     clusterid = -1 * np.ones(n)
-    for i in range(0, n - 1):
-        if clusterid[i] == -1:
-            clusterid = expandcluster(setofpoints, i, clusterid, eps, minpoints)
+    for iter in range(0, n - 1):
+        if clusterid[iter] == -1:
+            clusterid = expandcluster(setofpoints, iter, clusterid, eps, minpoints)
     return clusterid
 
 
@@ -27,38 +26,37 @@ def dbscan(setofpoints, eps, minpoints):
 def expandcluster(setofpoints, point, clusterid, eps, minpoints):
     global checked
     seeds = regionquery(setofpoints, point, eps)  # Returns indices
-    t = time.time()
-    if np.sum(seeds == True) < minpoints:
+    if np.sum(seeds) < minpoints:
         return clusterid
     else:
         clusterid[seeds] = nextid(seeds)
-        seeds[np.where(seeds == True)[0][0]] = False
-        while np.sum(seeds == 1) != 0:
+        seeds[np.where(seeds)[0][0]] = False
+        while np.sum(seeds) != 0:
             print('Iteration %.0f, %.0f to analyze, %.0f size cluster' % (
-            np.sum(checked==True), np.sum(seeds==True), np.sum(clusterid == clusterid[point])))
-            point = np.where(seeds == True)[0][0]
+                np.sum(checked), np.sum(seeds), np.sum(clusterid == clusterid[point])))
+            point = np.where(seeds)[0][0]
             result = regionquery(setofpoints, point, eps)
             t = time.time()
-            if np.sum(result == True) >= minpoints:
+            if np.sum(result) >= minpoints:
                 clusterid[result] = clusterid[point]
                 seeds = np.maximum(result, seeds)
                 seeds = np.logical_and(seeds == True, checked != True)
             else:
-                seeds[np.where(seeds == True)[0][0]] = False
+                seeds[np.where(seeds)[0][0]] = False
     return clusterid
 
 
 # Determines which data points are within cluster distance.
-# Takes apprx 15-31 ms
 def regionquery(dataset, point, eps):
     global SpatialQuerySet, checked, seeds
     checked[point] = True
+    seeds[:] = False
     seeds[point] = True
     sq_point = SpatialQuerySet[point]
     dataset_sq = dataset[SpatialQuerySet == sq_point, :]
-    for i in range(0, len(dataset_sq[:, 1])):
-        if np.linalg.norm(dataset[point, :] - dataset_sq[i, :], 2) < eps:
-            seeds[i] = True
+    for j in range(0, len(dataset_sq[:, 1])):
+        if np.linalg.norm(dataset[point, :] - dataset_sq[j, :], 2) < eps:
+            seeds[j] = True
     return seeds
 
 
@@ -66,7 +64,7 @@ def regionquery(dataset, point, eps):
 def nextid(seeds):  # Counts which cluster we're assessing
     global nextClID
     nextClID += 1
-    return np.ones(np.sum(seeds == True)) * nextClID
+    return np.ones(np.sum(seeds)) * nextClID
 
 
 # Load, split and preprocess data
@@ -99,9 +97,11 @@ SpatialQuerySet = np.ones(n)
 nextClID = 0
 checked = np.zeros(n)
 checked = (checked == 1)
-seeds = checked
+seeds = np.zeros(n)
+seeds = (seeds == 1)
+t = time.time()
 clusters = dbscan(Xt, clusterRadius, minSamples)
-
+print('Time for %.0f datapoints: %.1f' % (n,time.time()-t))
 color = ''
 plt.figure()
 for i in set(clusters):

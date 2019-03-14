@@ -1,6 +1,6 @@
 import numpy as np
-from sklearn.cluster import Birch
 import matplotlib.pyplot as plt
+import time
 ## Reckon that binary vector for checked, seeds and results are computationally easier to compute
 
 
@@ -101,8 +101,9 @@ print('DBSCAN')
 SpatialQuerySet = np.ones(n)        # OBVIOUSLY FUCKED
 nextClID = 0
 checked = []
+t = time.time()
 clusters = dbscan(Xt,clusterRadius,minSamples)
-
+print('Time for %.0f datapoints: %.1f' % (n,(time.time()-t)))
 
 
 plt.figure()
