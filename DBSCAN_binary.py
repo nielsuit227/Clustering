@@ -3,11 +3,11 @@ import matplotlib.pyplot as plt
 import time
 
 # Parameters
-fault_th = 10  # Threshold on outliers to generate fault
-n = 20000  # Used samples for DBScan
-ldaDimension = 2  # LDA dimension
-clusterRadius = 0.05  # Cluster radius
-minSamples = 10  # Minimum datapoints in cluster to be defined cluster
+fault_th = 10           # Threshold on outliers to generate fault
+n = 10000               # Used samples for DBScan
+ldaDimension = 2        # LDA dimension
+clusterRadius = 0.5     # Cluster radius
+minSamples = 10         # Minimum datapoints in cluster to be defined cluster
 
 
 # Main function, loops through datapoints that are undiscovered.
@@ -32,32 +32,30 @@ def expandcluster(setofpoints, point, clusterid, eps, minpoints):
         clusterid[seeds] = nextid(seeds)
         seeds[np.where(seeds)[0][0]] = False
         while np.sum(seeds) != 0:
-            print('Iteration %.0f, %.0f to analyze, %.0f size cluster' % (
-                np.sum(checked), np.sum(seeds), np.sum(clusterid == clusterid[point])))
+            #print('Iteration %.0f, %.0f to analyze, %.0f size cluster' % (
+            #    np.sum(checked), np.sum(seeds), np.sum(clusterid == clusterid[point])))
             point = np.where(seeds)[0][0]
-            result = regionquery(setofpoints, point, eps)
             t = time.time()
+            result = regionquery(setofpoints, point, eps)
             if np.sum(result) >= minpoints:
                 clusterid[result] = clusterid[point]
                 seeds = np.maximum(result, seeds)
                 seeds = np.logical_and(seeds == True, checked != True)
             else:
-                seeds[np.where(seeds)[0][0]] = False
+                seeds[point] = False
     return clusterid
 
 
 # Determines which data points are within cluster distance.
 def regionquery(dataset, point, eps):
-    global SpatialQuerySet, checked, seeds
+    global SpatialQuerySet, checked
     checked[point] = True
-    seeds[:] = False
-    seeds[point] = True
+    neighbour = np.zeros(n)==1
+    neighbour[point] = True
     sq_point = SpatialQuerySet[point]
     dataset_sq = dataset[SpatialQuerySet == sq_point, :]
-    for j in range(0, len(dataset_sq[:, 1])):
-        if np.linalg.norm(dataset[point, :] - dataset_sq[j, :], 2) < eps:
-            seeds[j] = True
-    return seeds
+    neighbour = np.linalg.norm(dataset[point, :] - dataset_sq, 2, axis=1) < eps
+    return neighbour
 
 
 # Incremental cluster number
@@ -69,13 +67,15 @@ def nextid(seeds):  # Counts which cluster we're assessing
 
 # Load, split and preprocess data
 print('Loading data')
+# TODO filter out pumps and thermistors, ask Les about this.
 my_data = np.load('A18.npy')
+
 
 # Used samples and PCA dimension
 X = my_data[:n, 3:]
 Y = my_data[:n, [1, 2]]
 m = np.size(X, 1)
-X = (X - np.outer(np.mean(X, axis=1), np.ones((1, m)))) / np.sqrt(np.var(X))
+X = (X-np.outer(np.ones(n), np.mean(X, axis=0)))/np.sqrt(np.var(X, axis=0))
 
 # PCA
 print('Applying PCA')
@@ -95,13 +95,11 @@ Xt = np.dot(X, v[:, :ldaDimension])
 print('Running DBSCAN')
 SpatialQuerySet = np.ones(n)
 nextClID = 0
-checked = np.zeros(n)
-checked = (checked == 1)
-seeds = np.zeros(n)
-seeds = (seeds == 1)
+checked = np.zeros(n) == 1
+seeds = np.zeros(n) == 1
 t = time.time()
 clusters = dbscan(Xt, clusterRadius, minSamples)
-print('Time for %.0f datapoints: %.1f' % (n,time.time()-t))
+print('Time for %.0f datapoints: %.3f' % (n,time.time()-t))
 color = ''
 plt.figure()
 for i in set(clusters):
