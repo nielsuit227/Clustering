@@ -50,7 +50,7 @@ def expandcluster(setofpoints, point, clusterid, eps, minpoints):
 def regionquery(dataset, point, eps):
     global SpatialQuerySet, checked
     checked[point] = True
-    neighbour = np.zeros(n)==1
+    neighbour = np.zeros(n) == 1
     neighbour[point] = True
     sq_point = SpatialQuerySet[point]
     dataset_sq = dataset[SpatialQuerySet == sq_point, :]
